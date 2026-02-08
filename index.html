@@ -452,9 +452,8 @@
           gyroBaseBeta = event.beta;
           gyroBaseGamma = event.gamma;
         }
-        // Mobile gyroscope axes are intentionally inverted for a more natural card reaction.
-        const normX = clamp(-(event.gamma - gyroBaseGamma) / 20, -1, 1);
-        const normY = clamp(-(event.beta - gyroBaseBeta) / 20, -1, 1);
+        const normX = clamp((event.gamma - gyroBaseGamma) / 20, -1, 1);
+        const normY = clamp((event.beta - gyroBaseBeta) / 20, -1, 1);
         applyTilt(normX, normY, 0.9);
       }
 
