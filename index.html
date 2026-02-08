@@ -369,7 +369,7 @@
       let gyroBaseBeta = null;
       let gyroBaseGamma = null;
       let gyroHasPermission = false;
-      let gyroPermissionRequested = false;
+      let gyroPermissionInFlight = false;
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const MAX_TILT_DEG = 9;
 
@@ -419,14 +419,15 @@
       function startGyroListening() {
         if (gyroListening || reduceMotion) return;
         window.addEventListener("deviceorientation", handleDeviceOrientation, true);
+        window.addEventListener("deviceorientationabsolute", handleDeviceOrientation, true);
         gyroListening = true;
       }
 
       async function enableGyroFromGesture() {
         if (reduceMotion || gyroHasPermission || typeof DeviceOrientationEvent === "undefined") return;
         if (typeof DeviceOrientationEvent.requestPermission === "function") {
-          if (gyroPermissionRequested) return;
-          gyroPermissionRequested = true;
+          if (gyroPermissionInFlight) return;
+          gyroPermissionInFlight = true;
           try {
             const permissionState = await DeviceOrientationEvent.requestPermission();
             if (permissionState === "granted") {
@@ -435,6 +436,8 @@
             }
           } catch (_) {
             // iOS can reject when the gesture context is invalid.
+          } finally {
+            gyroPermissionInFlight = false;
           }
           return;
         }
@@ -449,8 +452,9 @@
           gyroBaseBeta = event.beta;
           gyroBaseGamma = event.gamma;
         }
-        const normX = clamp((event.gamma - gyroBaseGamma) / 20, -1, 1);
-        const normY = clamp((event.beta - gyroBaseBeta) / 20, -1, 1);
+        // Mobile gyroscope axes are intentionally inverted for a more natural card reaction.
+        const normX = clamp(-(event.gamma - gyroBaseGamma) / 20, -1, 1);
+        const normY = clamp(-(event.beta - gyroBaseBeta) / 20, -1, 1);
         applyTilt(normX, normY, 0.9);
       }
 
@@ -507,10 +511,7 @@
       });
 
       function stopUnlockListeners() {
-        document.removeEventListener("pointerdown", handleUserGesture);
-        document.removeEventListener("touchstart", handleUserGesture);
-        document.removeEventListener("click", handleUserGesture);
-        document.removeEventListener("keydown", handleUserGesture);
+        // Keep gesture listeners active so iOS gyroscope permission can be retried.
         window.removeEventListener("focus", unlockMusic);
       }
 
