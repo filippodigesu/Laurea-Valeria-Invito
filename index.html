@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invito Laurea Valeria</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-1: #f4ede2;
+        --bg-2: #f8f2e8;
+        --accent: #c31f6f;
+        --accent-2: #7a214d;
+        --text: #3b2432;
+        --card: #fffdf8;
+        --shadow: 0 22px 50px rgba(67, 31, 53, 0.25);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 15%, rgba(195, 31, 111, 0.15), transparent 40%),
+          radial-gradient(circle at 85% 80%, rgba(122, 33, 77, 0.12), transparent 45%),
+          linear-gradient(160deg, var(--bg-1), var(--bg-2));
+        overflow-x: hidden;
+        padding: 20px 14px;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .invite {
+        position: relative;
+        width: min(96vw, 520px);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.68));
+        border: 1px solid rgba(122, 33, 77, 0.2);
+        border-radius: 28px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(5px);
+        overflow: hidden;
+      }
+
+      .stage {
+        position: relative;
+        margin: 10px auto;
+        width: calc(100% - 20px);
+        border-radius: 22px;
+        overflow: hidden;
+        background: var(--card);
+        aspect-ratio: 3 / 4;
+        cursor: pointer;
+        border: 2px solid rgba(122, 33, 77, 0.18);
+        touch-action: manipulation;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+
+      .img-layer {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1), opacity 550ms ease;
+        pointer-events: none;
+        -webkit-user-drag: none;
+      }
+
+      .cover {
+        z-index: 2;
+      }
+
+      .details {
+        z-index: 1;
+        opacity: 0;
+        transform: scale(1.08);
+      }
+
+      .fx-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .fx-ripple {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        left: 0;
+        top: 0;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.92);
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+        transform: translate(-50%, -50%) scale(0.2);
+        animation: fx-ripple 500ms ease-out forwards;
+      }
+
+      .fx-spark {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        left: 0;
+        top: 0;
+        border-radius: 2px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 237, 158, 0.95));
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.9);
+        transform: translate(-50%, -50%);
+        animation: fx-spark 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+
+      @keyframes fx-ripple {
+        0% {
+          opacity: 0.9;
+          transform: translate(-50%, -50%) scale(0.2);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(10);
+        }
+      }
+
+      @keyframes fx-spark {
+        0% {
+          opacity: 0.95;
+          transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) rotate(40deg) scale(0.4);
+        }
+      }
+
+      .invite.revealed .cover {
+        opacity: 0;
+        transform: scale(1.08) rotate(-2deg);
+        pointer-events: none;
+      }
+
+      .invite.revealed .details {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      @media (max-width: 500px) {
+        .invite {
+          border-radius: 22px;
+        }
+
+        .stage {
+          width: calc(100% - 16px);
+          border-radius: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <audio id="bgMusic" autoplay loop preload="auto">
+      <source src="music.mp3" type="audio/mpeg" />
+    </audio>
+
+    <section class="invite" id="invite">
+      <div class="stage" id="stage" role="button" tabindex="0" aria-label="Apri invito laurea">
+        <img class="img-layer cover" id="cover" src="cover.webp" alt="Copertina invito laurea" fetchpriority="high" decoding="async" draggable="false" />
+        <img class="img-layer details" id="details" src="details.webp" alt="Dettagli invito laurea" loading="lazy" decoding="async" draggable="false" />
+        <div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <script>
+      const invite = document.getElementById("invite");
+      const stage = document.getElementById("stage");
+      const cover = document.getElementById("cover");
+      const details = document.getElementById("details");
+      const fxLayer = document.getElementById("fxLayer");
+      const bgMusic = document.getElementById("bgMusic");
+      let revealed = false;
+
+      bgMusic.volume = 0.35;
+
+      function toggleView() {
+        revealed = !revealed;
+        invite.classList.toggle("revealed", revealed);
+      }
+
+      stage.addEventListener("click", toggleView);
+      stage.addEventListener("pointerdown", (event) => {
+        spawnEffect(event.clientX, event.clientY);
+      });
+      stage.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+      });
+      stage.addEventListener("dragstart", (event) => {
+        event.preventDefault();
+      });
+      stage.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          const rect = stage.getBoundingClientRect();
+          spawnEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          toggleView();
+        }
+      });
+
+      async function startMusic() {
+        try {
+          await bgMusic.play();
+        } catch (_) {
+          // Some browsers require a user gesture before starting audio.
+        }
+      }
+
+      startMusic();
+      document.addEventListener("pointerdown", startMusic, { once: true });
+      document.addEventListener("keydown", startMusic, { once: true });
+
+      function setupFallbacks(img, sources) {
+        let index = 0;
+        img.src = sources[index];
+        img.addEventListener("error", () => {
+          index += 1;
+          if (index < sources.length) {
+            img.src = sources[index];
+          }
+        });
+      }
+
+      setupFallbacks(cover, ["cover.webp", "cover.jpg", "cover.jpeg", "cover.png"]);
+      setupFallbacks(details, ["details.webp", "details.jpg", "details.jpeg", "details.png"]);
+
+      function spawnEffect(clientX, clientY) {
+        const rect = stage.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        const ripple = document.createElement("span");
+        ripple.className = "fx-ripple";
+        ripple.style.left = `${x}px`;
+        ripple.style.top = `${y}px`;
+        fxLayer.appendChild(ripple);
+
+        const sparkVectors = [
+          [36, 0],
+          [26, 24],
+          [0, 36],
+          [-26, 24],
+          [-36, 0],
+          [-26, -24],
+          [0, -36],
+          [26, -24],
+        ];
+
+        sparkVectors.forEach(([dx, dy]) => {
+          const spark = document.createElement("span");
+          spark.className = "fx-spark";
+          spark.style.left = `${x}px`;
+          spark.style.top = `${y}px`;
+          spark.style.setProperty("--dx", `${dx}px`);
+          spark.style.setProperty("--dy", `${dy}px`);
+          fxLayer.appendChild(spark);
+          spark.addEventListener("animationend", () => spark.remove(), { once: true });
+        });
+
+        ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
+      }
+    </script>
+  </body>
+</html>
