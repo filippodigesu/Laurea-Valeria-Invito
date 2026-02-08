@@ -143,6 +143,26 @@
         box-shadow: var(--shadow);
         backdrop-filter: blur(5px);
         overflow: hidden;
+        transform: perspective(1100px) rotateX(0deg) rotateY(0deg) scale(1);
+        transform-style: preserve-3d;
+        transition: transform 140ms ease-out;
+        will-change: transform;
+      }
+
+      .tilt-shine {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: 4;
+        opacity: var(--shine-opacity, 0);
+        background: radial-gradient(
+          280px 220px at var(--shine-x, 50%) var(--shine-y, 50%),
+          rgba(255, 255, 255, 0.34),
+          rgba(255, 255, 255, 0) 72%
+        );
+        mix-blend-mode: screen;
+        transition: opacity 160ms linear;
       }
 
       .stage {
@@ -302,7 +322,8 @@
         .floater,
         .img-layer,
         .fx-ripple,
-        .fx-spark {
+        .fx-spark,
+        .invite {
           animation: none !important;
           transition: none !important;
         }
@@ -328,6 +349,7 @@
         <img class="img-layer details" id="details" src="details.webp" alt="Dettagli invito laurea" loading="lazy" decoding="async" draggable="false" />
         <div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
       </div>
+      <div class="tilt-shine" id="tiltShine" aria-hidden="true"></div>
     </section>
 
     <script>
@@ -336,11 +358,20 @@
       const cover = document.getElementById("cover");
       const details = document.getElementById("details");
       const fxLayer = document.getElementById("fxLayer");
+      const tiltShine = document.getElementById("tiltShine");
       const floaters = document.getElementById("floaters");
       const bgMusic = document.getElementById("bgMusic");
       let revealed = false;
       let musicStarted = false;
       let musicUnlocked = false;
+      let pointerTilting = false;
+      let gyroListening = false;
+      let gyroBaseBeta = null;
+      let gyroBaseGamma = null;
+      let gyroHasPermission = false;
+      let gyroPermissionRequested = false;
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const MAX_TILT_DEG = 9;
 
       bgMusic.volume = 0.35;
       bgMusic.muted = true;
@@ -351,13 +382,113 @@
         invite.classList.toggle("revealed", revealed);
       }
 
-      stage.addEventListener("click", () => {
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function applyTilt(normX, normY, strength = 1) {
+        if (reduceMotion) return;
+        invite.style.transition = "transform 0s";
+        tiltShine.style.transition = "opacity 40ms linear";
+        const rotateY = clamp(normX, -1, 1) * MAX_TILT_DEG * strength;
+        const rotateX = clamp(-normY, -1, 1) * MAX_TILT_DEG * strength;
+        const scale = 1 + 0.012 * strength;
+        invite.style.transform = `perspective(1100px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+        tiltShine.style.setProperty("--shine-x", `${((clamp(normX, -1, 1) + 1) * 50).toFixed(1)}%`);
+        tiltShine.style.setProperty("--shine-y", `${((clamp(normY, -1, 1) + 1) * 50).toFixed(1)}%`);
+        tiltShine.style.setProperty("--shine-opacity", `${(0.18 + 0.22 * strength).toFixed(2)}`);
+      }
+
+      function resetTilt() {
+        if (reduceMotion) return;
+        invite.style.transition = "transform 150ms ease-out";
+        tiltShine.style.transition = "opacity 140ms ease-out";
+        invite.style.transform = "perspective(1100px) rotateX(0deg) rotateY(0deg) scale(1)";
+        tiltShine.style.setProperty("--shine-opacity", "0");
+      }
+
+      function handleGlobalPointerTilt(event) {
+        if (reduceMotion) return;
+        if (event.pointerType && event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+        pointerTilting = true;
+        const x = clamp(event.clientX / window.innerWidth, 0, 1);
+        const y = clamp(event.clientY / window.innerHeight, 0, 1);
+        applyTilt(x * 2 - 1, y * 2 - 1, 0.95);
+      }
+
+      function startGyroListening() {
+        if (gyroListening || reduceMotion) return;
+        window.addEventListener("deviceorientation", handleDeviceOrientation, true);
+        gyroListening = true;
+      }
+
+      async function enableGyroFromGesture() {
+        if (reduceMotion || gyroHasPermission || typeof DeviceOrientationEvent === "undefined") return;
+        if (typeof DeviceOrientationEvent.requestPermission === "function") {
+          if (gyroPermissionRequested) return;
+          gyroPermissionRequested = true;
+          try {
+            const permissionState = await DeviceOrientationEvent.requestPermission();
+            if (permissionState === "granted") {
+              gyroHasPermission = true;
+              startGyroListening();
+            }
+          } catch (_) {
+            // iOS can reject when the gesture context is invalid.
+          }
+          return;
+        }
+        gyroHasPermission = true;
+        startGyroListening();
+      }
+
+      function handleDeviceOrientation(event) {
+        if (reduceMotion || pointerTilting) return;
+        if (event.beta == null || event.gamma == null) return;
+        if (gyroBaseBeta === null || gyroBaseGamma === null) {
+          gyroBaseBeta = event.beta;
+          gyroBaseGamma = event.gamma;
+        }
+        const normX = clamp((event.gamma - gyroBaseGamma) / 20, -1, 1);
+        const normY = clamp((event.beta - gyroBaseBeta) / 20, -1, 1);
+        applyTilt(normX, normY, 0.9);
+      }
+
+      function handleUserGesture() {
+        enableGyroFromGesture();
         unlockMusic();
+      }
+
+      stage.addEventListener("click", () => {
+        handleUserGesture();
         toggleView();
       });
       stage.addEventListener("pointerdown", (event) => {
-        unlockMusic();
+        handleUserGesture();
         spawnEffect(event.clientX, event.clientY);
+      });
+      window.addEventListener("pointermove", handleGlobalPointerTilt);
+      document.addEventListener("mouseleave", () => {
+        pointerTilting = false;
+        resetTilt();
+      });
+      window.addEventListener("pointerup", () => {
+        pointerTilting = false;
+        if (!gyroListening) {
+          resetTilt();
+        }
+      });
+      window.addEventListener("pointercancel", () => {
+        pointerTilting = false;
+        if (!gyroListening) {
+          resetTilt();
+        }
+      });
+      window.addEventListener("blur", () => {
+        pointerTilting = false;
+        if (!gyroListening) {
+          resetTilt();
+        }
       });
       stage.addEventListener("contextmenu", (event) => {
         event.preventDefault();
@@ -368,7 +499,7 @@
       stage.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          unlockMusic();
+          handleUserGesture();
           const rect = stage.getBoundingClientRect();
           spawnEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
           toggleView();
@@ -376,10 +507,10 @@
       });
 
       function stopUnlockListeners() {
-        document.removeEventListener("pointerdown", unlockMusic);
-        document.removeEventListener("touchstart", unlockMusic);
-        document.removeEventListener("click", unlockMusic);
-        document.removeEventListener("keydown", unlockMusic);
+        document.removeEventListener("pointerdown", handleUserGesture);
+        document.removeEventListener("touchstart", handleUserGesture);
+        document.removeEventListener("click", handleUserGesture);
+        document.removeEventListener("keydown", handleUserGesture);
         window.removeEventListener("focus", unlockMusic);
       }
 
@@ -409,10 +540,10 @@
       }
 
       startMusic();
-      document.addEventListener("pointerdown", unlockMusic);
-      document.addEventListener("touchstart", unlockMusic, { passive: true });
-      document.addEventListener("click", unlockMusic);
-      document.addEventListener("keydown", unlockMusic);
+      document.addEventListener("pointerdown", handleUserGesture);
+      document.addEventListener("touchstart", handleUserGesture, { passive: true });
+      document.addEventListener("click", handleUserGesture);
+      document.addEventListener("keydown", handleUserGesture);
       window.addEventListener("focus", unlockMusic);
       bgMusic.addEventListener("playing", () => {
         musicStarted = true;
@@ -442,6 +573,10 @@
       setupFallbacks(cover, ["cover.webp", "cover.jpg", "cover.jpeg", "cover.png"]);
       setupFallbacks(details, ["details.webp", "details.jpg", "details.jpeg", "details.png"]);
       buildFloaters(26);
+      if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission !== "function") {
+        gyroHasPermission = true;
+        startGyroListening();
+      }
 
       function spawnEffect(clientX, clientY) {
         const rect = stage.getBoundingClientRect();
