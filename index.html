@@ -191,7 +191,7 @@
     </style>
   </head>
   <body>
-    <audio id="bgMusic" autoplay loop preload="auto">
+    <audio id="bgMusic" autoplay loop preload="auto" playsinline>
       <source src="music.mp3" type="audio/mpeg" />
     </audio>
 
@@ -211,6 +211,7 @@
       const fxLayer = document.getElementById("fxLayer");
       const bgMusic = document.getElementById("bgMusic");
       let revealed = false;
+      let musicStarted = false;
 
       bgMusic.volume = 0.35;
 
@@ -238,17 +239,38 @@
         }
       });
 
-      async function startMusic() {
-        try {
-          await bgMusic.play();
-        } catch (_) {
-          // Some browsers require a user gesture before starting audio.
+      function stopUnlockListeners() {
+        document.removeEventListener("pointerdown", startMusic);
+        document.removeEventListener("touchstart", startMusic);
+        document.removeEventListener("click", startMusic);
+        document.removeEventListener("keydown", startMusic);
+        window.removeEventListener("focus", startMusic);
+      }
+
+      function startMusic() {
+        if (musicStarted) return;
+        const playPromise = bgMusic.play();
+        if (!playPromise || typeof playPromise.then !== "function") {
+          musicStarted = true;
+          stopUnlockListeners();
+          return;
         }
+        playPromise
+          .then(() => {
+            musicStarted = true;
+            stopUnlockListeners();
+          })
+          .catch(() => {
+            // On some Android browsers audio unlock needs another user gesture.
+          });
       }
 
       startMusic();
-      document.addEventListener("pointerdown", startMusic, { once: true });
-      document.addEventListener("keydown", startMusic, { once: true });
+      document.addEventListener("pointerdown", startMusic);
+      document.addEventListener("touchstart", startMusic, { passive: true });
+      document.addEventListener("click", startMusic);
+      document.addEventListener("keydown", startMusic);
+      window.addEventListener("focus", startMusic);
 
       function setupFallbacks(img, sources) {
         let index = 0;
