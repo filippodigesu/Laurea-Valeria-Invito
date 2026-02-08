@@ -191,7 +191,7 @@
     </style>
   </head>
   <body>
-    <audio id="bgMusic" autoplay loop preload="auto" playsinline>
+    <audio id="bgMusic" autoplay loop preload="auto" playsinline muted>
       <source src="music.mp3" type="audio/mpeg" />
     </audio>
 
@@ -212,16 +212,23 @@
       const bgMusic = document.getElementById("bgMusic");
       let revealed = false;
       let musicStarted = false;
+      let musicUnlocked = false;
 
       bgMusic.volume = 0.35;
+      bgMusic.muted = true;
+      bgMusic.load();
 
       function toggleView() {
         revealed = !revealed;
         invite.classList.toggle("revealed", revealed);
       }
 
-      stage.addEventListener("click", toggleView);
+      stage.addEventListener("click", () => {
+        unlockMusic();
+        toggleView();
+      });
       stage.addEventListener("pointerdown", (event) => {
+        unlockMusic();
         spawnEffect(event.clientX, event.clientY);
       });
       stage.addEventListener("contextmenu", (event) => {
@@ -233,6 +240,7 @@
       stage.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
+          unlockMusic();
           const rect = stage.getBoundingClientRect();
           spawnEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
           toggleView();
@@ -240,37 +248,57 @@
       });
 
       function stopUnlockListeners() {
-        document.removeEventListener("pointerdown", startMusic);
-        document.removeEventListener("touchstart", startMusic);
-        document.removeEventListener("click", startMusic);
-        document.removeEventListener("keydown", startMusic);
-        window.removeEventListener("focus", startMusic);
+        document.removeEventListener("pointerdown", unlockMusic);
+        document.removeEventListener("touchstart", unlockMusic);
+        document.removeEventListener("click", unlockMusic);
+        document.removeEventListener("keydown", unlockMusic);
+        window.removeEventListener("focus", unlockMusic);
       }
 
       function startMusic() {
-        if (musicStarted) return;
         const playPromise = bgMusic.play();
         if (!playPromise || typeof playPromise.then !== "function") {
           musicStarted = true;
-          stopUnlockListeners();
           return;
         }
         playPromise
           .then(() => {
             musicStarted = true;
-            stopUnlockListeners();
           })
           .catch(() => {
-            // On some Android browsers audio unlock needs another user gesture.
+            // If blocked, we retry on the next user gesture.
           });
       }
 
+      function unlockMusic() {
+        if (musicUnlocked) return;
+        bgMusic.muted = false;
+        startMusic();
+        if (!bgMusic.paused) {
+          musicUnlocked = true;
+          stopUnlockListeners();
+        }
+      }
+
       startMusic();
-      document.addEventListener("pointerdown", startMusic);
-      document.addEventListener("touchstart", startMusic, { passive: true });
-      document.addEventListener("click", startMusic);
-      document.addEventListener("keydown", startMusic);
-      window.addEventListener("focus", startMusic);
+      document.addEventListener("pointerdown", unlockMusic);
+      document.addEventListener("touchstart", unlockMusic, { passive: true });
+      document.addEventListener("click", unlockMusic);
+      document.addEventListener("keydown", unlockMusic);
+      window.addEventListener("focus", unlockMusic);
+      bgMusic.addEventListener("playing", () => {
+        musicStarted = true;
+        if (!bgMusic.muted) {
+          musicUnlocked = true;
+          stopUnlockListeners();
+        }
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && musicUnlocked && bgMusic.paused) {
+          startMusic();
+        }
+      });
 
       function setupFallbacks(img, sources) {
         let index = 0;
